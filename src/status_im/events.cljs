@@ -1924,13 +1924,6 @@
  (fn [cofx [_ id result method]]
    (navigation/navigate-to-clean cofx :wallet-transaction-sent-modal {})))
 
-;; wallet module
-
-(handlers/register-handler-fx
- :wallet.callback/transaction-completed
- (fn [cofx _]
-   (navigation/navigate-to-clean cofx :wallet-transaction-sent-modal {})))
-
 ;; bottom-sheet events
 (handlers/register-handler-fx
  :bottom-sheet/show-sheet
