@@ -206,6 +206,7 @@
 
 (defview enter-pair-code []
   (letsubs [pair-code [:hardwallet-pair-code]
+            error [:hardwallet-setup-error]
             width [:dimensions/window-width]]
     [react/scroll-view
      [react/view styles/enter-pair-code-container
@@ -215,6 +216,12 @@
          (i18n/label :t/enter-pair-code)]
         [react/text {:style styles/enter-pair-code-explanation-text}
          (i18n/label :t/enter-pair-code-description)]]
+       (when error
+         [react/view
+          [react/text {:style {:font-weight "700"
+                               :padding-top 10
+                               :color       colors/red}}
+           error]])
        [react/view (styles/enter-pair-code-input-container width)
         [text-input/text-input-with-label
          {:on-change-text #(re-frame/dispatch [:hardwallet.ui/pair-code-input-changed %])

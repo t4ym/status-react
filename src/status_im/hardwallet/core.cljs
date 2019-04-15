@@ -960,9 +960,11 @@
 (fx/defn on-pairing-error
   [{:keys [db] :as cofx} {:keys [error code]}]
   (log/debug "[hardwallet] pairing error: " error)
-  (fx/merge cofx
-            {:db (assoc-in db [:hardwallet :setup-error] error)}
-            (process-error code)))
+  (let [setup-step (get-in db [:hardwallet :setup-step])]
+    (fx/merge cofx
+              {:db (assoc-in db [:hardwallet :setup-error] (i18n/label :t/invalid-pairing-password))}
+              (when (not= setup-step :enter-pair-code)
+                (process-error code)))))
 
 (fx/defn on-generate-mnemonic-success
   [{:keys [db]} mnemonic]
