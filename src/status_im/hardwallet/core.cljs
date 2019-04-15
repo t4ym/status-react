@@ -733,13 +733,23 @@
                          (assoc-in [:hardwallet :on-card-read] :hardwallet/login-with-keycard))}
                 (navigation/navigate-to-cofx :hardwallet-connect nil)))))
 
+(fx/defn show-wrong-keycard-alert
+  [_ card-connected?]
+  (when card-connected?
+    {:utils/show-popup {:title   (i18n/label :t/wrong-card)
+                        :content (i18n/label :t/wrong-card-text)}}))
+
 (fx/defn sign
   [{:keys [db] :as cofx}]
   (let [card-connected? (get-in db [:hardwallet :card-connected?])
         pairing (get-pairing db)
+        account-keycard-instance-uid (get-in db [:account/account :keycard-instance-uid])
+        instance-uid (get-in db [:hardwallet :application-info :instance-uid])
+        keycard-match? (= account-keycard-instance-uid instance-uid)
         hash (get-in db [:hardwallet :hash])
         pin (vector->string (get-in db [:hardwallet :pin :sign]))]
-    (if card-connected?
+    (if (and card-connected?
+             keycard-match?)
       {:db              (-> db
                             (assoc-in [:hardwallet :card-read-in-progress?] true)
                             (assoc-in [:hardwallet :pin :status] :verifying))
@@ -748,6 +758,8 @@
                          :pin     pin}}
       (fx/merge cofx
                 {:db (assoc-in db [:hardwallet :on-card-connected] :hardwallet/sign)}
+                (when-not keycard-match?
+                  (show-wrong-keycard-alert card-connected?))
                 (navigation/navigate-to-cofx :hardwallet-connect nil)))))
 
 ; PIN enter steps:
