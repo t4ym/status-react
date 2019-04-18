@@ -140,10 +140,15 @@
   [{:keys [db] :as cofx}]
   (let [app-info (get-in db [:hardwallet :application-info])
         card-state (get-card-state app-info)
-        setup-running? (boolean (get-in db [:hardwallet :setup-step]))]
-    (fx/merge cofx
-              {:db (assoc-in db [:hardwallet :card-state] card-state)}
-              (when setup-running?
+        setup-running? (boolean (get-in db [:hardwallet :setup-step]))
+        db' (assoc-in db [:hardwallet :card-state] card-state)]
+    (if setup-running?
+      (fx/merge cofx
+                {:db db'}
+                (set-setup-step card-state)
+                (if (= :pre-init card-state)
+                  (navigation/navigate-to-cofx :hardwallet-setup nil)
+                  (navigation/navigate-to-cofx :hardwallet-authentication-method nil))
                 (when (= card-state :blank)
                   (show-no-keycard-applet-alert))
                 (if (= card-state :account)
@@ -299,6 +304,7 @@
         accounts-screen? (= :accounts (:view-id db))
         auto-login? (and accounts-screen?
                          (not= on-success :hardwallet/auto-login))
+        setup-starting? (= :begin (get-in db [:hardwallet :setup-step]))
         enter-step (if (zero? pin-retry-counter)
                      :puk
                      (get-in db [:hardwallet :pin :enter-step]))]
@@ -312,8 +318,7 @@
                 (login-with-keycard true))
               (when-not connect-screen?
                 (clear-on-card-read))
-              (when (and (nil? card-state)
-                         instance-uid)
+              (when setup-starting?
                 (check-card-state))
               (if (zero? puk-retry-counter)
                 {:utils/show-popup {:title   (i18n/label :t/error)
@@ -830,9 +835,8 @@
 (fx/defn on-card-connected
   [{:keys [db] :as cofx} _]
   (log/debug "[hardwallet] card connected")
-  (let [setup-step (get-in db [:hardwallet :setup-step])
-        setup-running? (boolean setup-step)
-        pin-enter-step (get-in db [:hardwallet :pin :enter-step])
+  (let [pin-enter-step (get-in db [:hardwallet :pin :enter-step])
+        setup-running? (boolean (get-in db [:hardwallet :setup-step]))
         login? (= :login pin-enter-step)
         instance-uid (get-in db [:hardwallet :application-info :instance-uid])
         accounts-screen? (= :accounts (:view-id db))
