@@ -654,12 +654,13 @@
   [{:keys [db]}]
   (let [{:keys [topics from] :as request}
         (get db :mailserver/current-request)
-        chat-ids       (map str
-                            (mapcat
-                             :chat-ids
-                             (-> (:mailserver/topics db)
-                                 (select-keys topics)
-                                 vals)))
+        chat-ids       (set
+                        (map str
+                             (mapcat
+                              :chat-ids
+                              (-> (:mailserver/topics db)
+                                  (select-keys topics)
+                                  vals))))
         {:keys [updated-gaps new-gaps deleted-gaps]}
         (check-all-gaps (get db :mailserver/gaps)
                         chat-ids
@@ -851,24 +852,29 @@
       add the chat-id to the topic and reset last-request
       there was no filter for the chat and messages for that
       so the whole history for that topic needs to be re-fetched"
-  [{:keys [db now] :as cofx} {:keys [topic chat-id]}]
-  (let [{:keys [chat-ids] :as current-mailserver-topic}
-        (get-in db [:mailserver/topics topic] {:chat-ids #{}})]
-    (when-not (contains? chat-ids chat-id)
+  [{:keys [db now] :as cofx} {:keys [topic chat-ids fetch?]
+                              :or   {fetch? true}}]
+  (let [current-mailserver-topic (get-in db [:mailserver/topics topic]
+                                         {:chat-ids #{}})
+        existing-ids             (:chat-ids current-mailserver-topic)
+        chat-id                  (first chat-ids)]
+    (when-not (every? (partial contains? existing-ids) chat-ids)
       (let [{:keys [new-account? public-key]} (:account/account db)
             now-s        (quot now 1000)
-            last-request (if (and new-account?
-                                  (or (= chat-id :discovery-topic)
-                                      (and
-                                       (string? chat-id)
-                                       (string/starts-with?
-                                        chat-id
-                                        public-key))))
+            last-request (if (or
+                              (not fetch?)
+                              (and new-account?
+                                   (or (= chat-id :discovery-topic)
+                                       (and
+                                        (string? chat-id)
+                                        (string/starts-with?
+                                         chat-id
+                                         public-key)))))
                            (- now-s 10)
                            (- now-s max-request-range))
             mailserver-topic (-> current-mailserver-topic
                                  (assoc :last-request last-request)
-                                 (update :chat-ids conj chat-id))]
+                                 (update :chat-ids clojure.set/union (set chat-ids)))]
         (fx/merge cofx
                   {:db            (assoc-in db [:mailserver/topics topic] mailserver-topic)
                    :data-store/tx [(data-store.mailservers/save-mailserver-topic-tx

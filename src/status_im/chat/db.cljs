@@ -58,15 +58,6 @@
       (get-in db [:transport/chats current-chat-id :topic])
       (topic/public-key->discovery-topic-hash public-key))))
 
-(defn messages-gap
-  [mailserver-topics topic]
-  (let [{:keys [gap-from gap-to]}
-        (get mailserver-topics topic)]
-    {:from    gap-from
-     :to      gap-to
-     :exists? (and gap-from gap-to
-                   (> gap-to gap-from))}))
-
 (defn sort-message-groups
   "Sorts message groups according to timestamp of first message in group"
   [message-groups messages]

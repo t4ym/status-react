@@ -20,7 +20,8 @@
             [status-im.utils.platform :as platform]
             [status-im.utils.priority-map :refer [empty-message-map]]
             [status-im.utils.utils :as utils]
-            [status-im.mailserver.core :as mailserver]))
+            [status-im.mailserver.core :as mailserver]
+            [status-im.transport.partitioned-topic :as transport.topic]))
 
 (defn- get-chat [cofx chat-id]
   (get-in cofx [:db :chats chat-id]))
@@ -275,10 +276,15 @@
   [{:keys [db] :as cofx} chat-id opts]
   ;; don't allow to open chat with yourself
   (when (not= (accounts.db/current-public-key cofx) chat-id)
-    (fx/merge cofx
-              (upsert-chat {:chat-id chat-id
-                            :is-active true})
-              (navigate-to-chat chat-id opts))))
+    (let []
+      (fx/merge cofx
+                (upsert-chat {:chat-id   chat-id
+                              :is-active true})
+                (mailserver/upsert-mailserver-topic
+                 {:topic    transport.topic/discovery-topic-hash
+                  :chat-ids [chat-id]
+                  :fetch?   false})
+                (navigate-to-chat chat-id opts)))))
 
 (fx/defn start-public-chat
   "Starts a new public chat"
