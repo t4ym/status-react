@@ -289,11 +289,6 @@
   (apply fx/merge cofx
          (map (partial update-last-message (:chats db)) chat-ids)))
 
-(fx/defn declare-syncd-public-chats!
-  [{:keys [db] :as cofx} chat-ids]
-  (apply fx/merge cofx
-         (map (partial chat-model/join-time-messages-checked db) chat-ids)))
-
 (defn- chat-ids->never-synced-public-chat-ids [chats chat-ids]
   (let [never-synced-public-chat-ids (mailserver/chats->never-synced-public-chats chats)]
     (when (seq never-synced-public-chat-ids)
@@ -333,7 +328,7 @@
                                    [(chat-model/update-dock-badge-label)])
                                  [(update-last-messages chat-ids)]
                                  (when (seq never-synced-public-chat-ids)
-                                   [(declare-syncd-public-chats! never-synced-public-chat-ids)])))))
+                                   (map #(chat-model/join-time-messages-checked %) chat-ids))))))
 
 (defn system-message [{:keys [now] :as cofx} {:keys [clock-value chat-id content from]}]
   (let [{:keys [last-clock-value]} (get-in cofx [:db :chats chat-id])
